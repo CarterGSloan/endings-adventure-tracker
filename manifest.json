@@ -1,0 +1,16 @@
+{
+  "name": "Endings \u2014 Adventure Tracker",
+  "short_name": "Endings",
+  "description": "Track which endings you've reached in your Choose Your Own Adventure books.",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#F3EAD3",
+  "theme_color": "#2F5233",
+  "icons": [
+    { "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "icons/icon-512-maskable.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}

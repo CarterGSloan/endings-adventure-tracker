@@ -1,0 +1,208 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Endings &mdash; Adventure Tracker</title>
+<meta name="description" content="Track which endings you've reached in your Choose Your Own Adventure books.">
+<meta name="theme-color" content="#2F5233" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#1C1712" media="(prefers-color-scheme: dark)">
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icons/icon-192.png">
+<link rel="apple-touch-icon" href="icons/icon-512.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Endings">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<!-- ============ LIBRARY VIEW ============ -->
+<div id="view-library">
+  <header class="appbar">
+    <div class="appbar__titles">
+      <h1 class="appbar__title serif">My Adventures</h1>
+      <p class="appbar__subtitle" id="library-subtitle">&nbsp;</p>
+    </div>
+    <button class="icon-btn" id="btn-settings" aria-label="Settings">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
+    </button>
+  </header>
+
+  <main>
+    <div id="shelf" class="shelf"></div>
+    <div id="library-empty" class="empty" hidden>
+      <div class="empty__glyph">&#x1F5FA;</div>
+      <p>No adventures yet. Add the first book you're tracking endings for.</p>
+    </div>
+  </main>
+
+  <button class="fab" id="btn-add-book">+ Add a book</button>
+</div>
+
+<!-- ============ BOOK VIEW ============ -->
+<div id="view-book" hidden>
+  <header class="appbar">
+    <button class="appbar__back" id="btn-back" aria-label="Back to library">&#x2039;</button>
+    <div class="appbar__titles">
+      <h1 class="appbar__title serif" id="book-title">&nbsp;</h1>
+      <p class="appbar__subtitle" id="book-author">&nbsp;</p>
+    </div>
+    <button class="icon-btn" id="btn-edit-book" aria-label="Edit book">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"></path><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"></path></svg>
+    </button>
+  </header>
+
+  <main>
+    <div class="ending-summary">
+      <div class="ending-summary__count" id="book-progress-count">0/0</div>
+      <div class="ending-summary__text" id="book-progress-text">endings reached</div>
+    </div>
+
+    <div id="endings" class="endings"></div>
+    <div id="book-empty" class="empty" hidden>
+      <div class="empty__glyph">&#x1F33F;</div>
+      <p>No endings logged yet. Add one whenever you reach a new ending &mdash; or list the ones you already know about.</p>
+    </div>
+  </main>
+
+  <button class="fab" id="btn-add-ending">+ Add an ending</button>
+</div>
+
+<!-- ============ ADD/EDIT BOOK DIALOG ============ -->
+<dialog id="dlg-book">
+  <form method="dialog" class="sheet" id="form-book">
+    <div class="sheet__head">
+      <h2 id="book-dlg-title">Add a book</h2>
+      <button type="button" class="icon-btn" data-close="dlg-book" aria-label="Close">&#x2715;</button>
+    </div>
+    <div class="sheet__body">
+      <div class="field">
+        <label for="f-book-title">Title</label>
+        <input type="text" id="f-book-title" required autocomplete="off">
+      </div>
+      <div class="field">
+        <label for="f-book-author">Author</label>
+        <input type="text" id="f-book-author" autocomplete="off">
+      </div>
+      <div class="field">
+        <label for="f-book-series">Series <span class="hint">optional</span></label>
+        <input type="text" id="f-book-series" autocomplete="off">
+      </div>
+      <div class="field">
+        <label for="f-book-total">Known total endings <span class="hint">optional &mdash; leave blank if unsure</span></label>
+        <input type="number" id="f-book-total" min="0" inputmode="numeric">
+      </div>
+      <div class="field">
+        <label for="f-book-notes">Notes</label>
+        <textarea id="f-book-notes"></textarea>
+      </div>
+    </div>
+    <div class="sheet__foot">
+      <button type="button" class="btn btn--ghost" data-close="dlg-book">Cancel</button>
+      <button type="submit" class="btn btn--primary" id="btn-save-book">Save book</button>
+    </div>
+  </form>
+</dialog>
+
+<!-- ============ ADD/EDIT ENDING DIALOG ============ -->
+<dialog id="dlg-ending">
+  <form method="dialog" class="sheet" id="form-ending">
+    <div class="sheet__head">
+      <h2 id="ending-dlg-title">Add an ending</h2>
+      <button type="button" class="icon-btn" data-close="dlg-ending" aria-label="Close">&#x2715;</button>
+    </div>
+    <div class="sheet__body">
+      <div class="field">
+        <label for="f-ending-label">What happens</label>
+        <input type="text" id="f-ending-label" required autocomplete="off" placeholder="e.g. Frozen Forever">
+      </div>
+      <div class="field">
+        <label for="f-ending-page">Page / reference <span class="hint">optional</span></label>
+        <input type="text" id="f-ending-page" autocomplete="off" placeholder="e.g. p. 46">
+      </div>
+      <div class="field">
+        <label for="f-ending-path">How you got there <span class="hint">optional</span></label>
+        <textarea id="f-ending-path" placeholder="The choices that led here"></textarea>
+      </div>
+      <div class="field">
+        <label for="f-ending-notes">Notes</label>
+        <textarea id="f-ending-notes"></textarea>
+      </div>
+      <div class="field">
+        <label>Your rating <span class="hint">optional</span></label>
+        <div class="ratingpick" id="f-ending-rating" data-value="0">
+          <button type="button" data-star="1">&#9733;</button>
+          <button type="button" data-star="2">&#9733;</button>
+          <button type="button" data-star="3">&#9733;</button>
+          <button type="button" data-star="4">&#9733;</button>
+          <button type="button" data-star="5">&#9733;</button>
+        </div>
+      </div>
+      <div class="field toggle-row">
+        <span>Mark as reached</span>
+        <label class="switch">
+          <input type="checkbox" id="f-ending-reached">
+          <span class="track"></span>
+          <span class="thumb"></span>
+        </label>
+      </div>
+      <div class="field toggle-row">
+        <span>Hide notes until revealed (spoiler)</span>
+        <label class="switch">
+          <input type="checkbox" id="f-ending-spoiler">
+          <span class="track"></span>
+          <span class="thumb"></span>
+        </label>
+      </div>
+    </div>
+    <div class="sheet__foot">
+      <button type="button" class="btn btn--ghost" data-close="dlg-ending">Cancel</button>
+      <button type="submit" class="btn btn--primary" id="btn-save-ending">Save ending</button>
+    </div>
+  </form>
+</dialog>
+
+<!-- ============ SETTINGS DIALOG ============ -->
+<dialog id="dlg-settings">
+  <div class="sheet">
+    <div class="sheet__head">
+      <h2>Settings</h2>
+      <button type="button" class="icon-btn" data-close="dlg-settings" aria-label="Close">&#x2715;</button>
+    </div>
+    <div class="sheet__body">
+      <div class="settings-section">
+        <h3>Backup &amp; transfer between devices</h3>
+        <div class="settings-row">
+          <div class="settings-row__text">
+            <strong>Export your library</strong>
+            <span>Save a file with every book and ending</span>
+          </div>
+          <button type="button" id="btn-export">Export</button>
+        </div>
+        <div class="settings-row">
+          <div class="settings-row__text">
+            <strong>Import a library file</strong>
+            <span>Merge in books and endings from a file</span>
+          </div>
+          <button type="button" id="btn-import">Import</button>
+        </div>
+        <input type="file" id="file-import" accept="application/json" hidden>
+      </div>
+      <div class="settings-section">
+        <h3>About</h3>
+        <p style="font-size:13px; color:var(--ink-soft); line-height:1.6; margin:0;">
+          Everything is stored only on this device, in this browser. Nothing is sent anywhere.
+          To use this on a second device, export here and import there.
+        </p>
+      </div>
+    </div>
+  </div>
+</dialog>
+
+<div class="toast" id="toast"></div>
+
+<script src="vendor/dexie.min.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
