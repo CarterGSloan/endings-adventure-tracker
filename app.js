@@ -189,7 +189,7 @@ async function renderBook() {
       renderBook();
     }));
   $$('#endings [data-action="edit-ending"]').forEach((el) =>
-    el.addEventListener("click", (ev) => { ev.stopPropagation(); openEndingDialog(Number(el.dataset.id)); }));
+    el.addEventListener("click", (ev) => { ev.stopPropagation(); openEndingDialogById(Number(el.dataset.id)); }));
   $$('#endings [data-action="delete-ending"]').forEach((el) =>
     el.addEventListener("click", (ev) => { ev.stopPropagation(); deleteEnding(Number(el.dataset.id)); }));
 }
@@ -369,11 +369,7 @@ async function openEndingDialogById(id) {
   const e = await db.endings.get(id);
   openEndingDialog(id, e);
 }
-// re-bind edit buttons to pass full record (overrides the simpler listener above)
-document.addEventListener("click", (ev) => {
-  const el = ev.target.closest('[data-action="edit-ending"]');
-  if (el) openEndingDialogById(Number(el.dataset.id));
-});
+
 
 $("#form-ending").addEventListener("submit", async (ev) => {
   ev.preventDefault();

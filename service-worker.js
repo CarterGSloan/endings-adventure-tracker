@@ -1,5 +1,5 @@
 // Bump this when you deploy a change so clients pick up the new files.
-const CACHE_NAME = "endings-cache-v1";
+const CACHE_NAME = "endings-cache-v2";
 
 const APP_SHELL = [
   "./",
