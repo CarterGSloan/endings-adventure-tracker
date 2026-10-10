@@ -51,9 +51,13 @@
     <button class="icon-btn" id="btn-edit-book" aria-label="Edit book">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"></path><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"></path></svg>
     </button>
+    <div class="seg" role="tablist" aria-label="Book pages">
+      <button type="button" role="tab" id="tab-list" aria-selected="true" aria-controls="panel-list">Endings</button>
+      <button type="button" role="tab" id="tab-map" aria-selected="false" aria-controls="panel-map">Story map</button>
+    </div>
   </header>
 
-  <main>
+  <main id="panel-list">
     <div class="ending-summary">
       <div class="ending-summary__count" id="book-progress-count">0/0</div>
       <div class="ending-summary__text" id="book-progress-text">endings reached</div>
@@ -65,6 +69,20 @@
       <p>No endings logged yet. Add one whenever you reach a new ending &mdash; or list the ones you already know about.</p>
     </div>
   </main>
+
+  <div id="panel-map" class="map-panel" hidden role="tabpanel" aria-labelledby="tab-map">
+    <div class="map-toolbar">
+      <p class="map-hint" id="map-hint">&nbsp;</p>
+      <div class="zoom">
+        <button type="button" id="zoom-out" aria-label="Zoom out">&minus;</button>
+        <button type="button" id="zoom-in" aria-label="Zoom in">+</button>
+      </div>
+    </div>
+    <div class="map-scroll" id="map-scroll">
+      <svg id="map-svg" class="map-svg" role="group" aria-label="Story map" xmlns="http://www.w3.org/2000/svg"></svg>
+    </div>
+    <p class="map-note" id="map-note" hidden></p>
+  </div>
 
   <button class="fab" id="btn-add-ending">+ Add an ending</button>
 </div>
@@ -200,9 +218,65 @@
   </div>
 </dialog>
 
+<!-- ============ STORY MAP: NODE SHEET ============ -->
+<dialog id="dlg-node">
+  <div class="sheet">
+    <div class="sheet__head">
+      <h2 id="node-dlg-title">&nbsp;</h2>
+      <button type="button" class="icon-btn" data-close="dlg-node" aria-label="Close">&#x2715;</button>
+    </div>
+    <div class="sheet__body" id="node-dlg-body"></div>
+    <div class="sheet__foot" id="node-dlg-foot"></div>
+  </div>
+</dialog>
+
+<!-- ============ STORY MAP: ADD A LINE ============ -->
+<dialog id="dlg-line">
+  <form method="dialog" class="sheet" id="form-line">
+    <div class="sheet__head">
+      <h2>Add a line</h2>
+      <button type="button" class="icon-btn" data-close="dlg-line" aria-label="Close">&#x2715;</button>
+    </div>
+    <div class="sheet__body">
+      <div class="field">
+        <label id="lbl-line-type">Where does it lead?</label>
+        <div class="seg" id="line-type" role="radiogroup" aria-labelledby="lbl-line-type">
+          <button type="button" role="radio" aria-checked="true" data-type="decision">
+            <svg viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="5.5" fill="none" stroke="currentColor" stroke-width="2.2"/></svg>
+            A decision
+          </button>
+          <button type="button" role="radio" aria-checked="false" data-type="ending">
+            <svg viewBox="0 0 16 16" aria-hidden="true"><rect x="2.5" y="2.5" width="11" height="11" rx="2" fill="none" stroke="currentColor" stroke-width="2.2"/></svg>
+            An ending
+          </button>
+        </div>
+        <p class="hint" id="line-type-hint"></p>
+      </div>
+      <div class="field">
+        <label for="f-line-label"><span id="line-label-text">What's the choice?</span> <span class="hint" id="line-label-opt">optional</span></label>
+        <input type="text" id="f-line-label" autocomplete="off">
+      </div>
+      <div class="field" id="line-link-field" hidden>
+        <label for="f-line-link">Or link an existing ending</label>
+        <select id="f-line-link"></select>
+        <p class="hint">Only endings from your list that aren't on the map yet are shown.</p>
+      </div>
+      <div class="field">
+        <label>Line color</label>
+        <div class="swatches" id="line-swatches"></div>
+      </div>
+    </div>
+    <div class="sheet__foot">
+      <button type="button" class="btn btn--ghost" data-close="dlg-line">Cancel</button>
+      <button type="submit" class="btn btn--primary">Add line</button>
+    </div>
+  </form>
+</dialog>
+
 <div class="toast" id="toast"></div>
 
 <script src="vendor/dexie.min.js"></script>
 <script src="app.js"></script>
+<script src="map.js"></script>
 </body>
 </html>

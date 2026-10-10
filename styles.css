@@ -76,6 +76,7 @@ button {
   background: var(--cream);
   border-bottom: 1px solid var(--line);
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: 10px;
 }
@@ -403,5 +404,112 @@ input:focus-visible, textarea:focus-visible, select:focus-visible, button:focus-
 @media (prefers-reduced-motion: reduce) {
   * { transition: none !important; animation: none !important; }
 }
+
+/* ===========================================================
+   Segmented control (book tabs, line type)
+   =========================================================== */
+.seg {
+  display: flex;
+  gap: 2px;
+  padding: 3px;
+  background: var(--cream-dim);
+  border-radius: 999px;
+}
+.appbar .seg { flex: 1 0 100%; margin-top: 2px; }
+.seg button {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  border: none;
+  background: none;
+  border-radius: 999px;
+  padding: 8px 12px;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--ink-soft);
+}
+.seg button svg { width: 14px; height: 14px; }
+.seg button[aria-selected="true"],
+.seg button[aria-checked="true"] {
+  background: var(--card);
+  color: var(--ink);
+  box-shadow: 0 1px 3px rgba(36,28,21,0.18);
+}
+
+/* ===========================================================
+   Story map
+   =========================================================== */
+.map-panel { padding-bottom: calc(48px + env(safe-area-inset-bottom, 0px)); }
+.map-toolbar {
+  display: flex; align-items: center; gap: 12px;
+  max-width: 900px; margin: 0 auto; padding: 12px 18px;
+}
+.map-hint { flex: 1; margin: 0; font-size: 13px; line-height: 1.4; color: var(--ink-soft); }
+.zoom { display: flex; gap: 6px; flex: none; }
+.zoom button {
+  width: 36px; height: 36px; border-radius: 50%;
+  border: 1px solid var(--line); background: var(--card); color: var(--ink);
+  font-size: 19px; line-height: 1;
+}
+.zoom button:active { background: var(--cream-dim); }
+
+.map-scroll {
+  overflow: auto;
+  -webkit-overflow-scrolling: touch;
+  background: var(--card);
+  border-top: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
+}
+.map-svg { display: block; }
+.map-note {
+  max-width: 640px; margin: 14px auto 0; padding: 0 18px;
+  font-size: 13px; line-height: 1.5; color: var(--ink-soft);
+}
+
+.map-svg .hit { fill: transparent; }
+.map-svg .m-ring { fill: var(--card); stroke: var(--ink); }
+.map-svg .m-chev { fill: var(--card); }
+.map-svg .mnode { cursor: pointer; outline: none; }
+.map-svg .mnode:focus-visible .hit { stroke: var(--forest); stroke-width: 2; }
+.map-svg .mlabel {
+  font: 600 12px var(--sans);
+  fill: var(--ink);
+  paint-order: stroke;
+  stroke: var(--card);
+  stroke-width: 3px;
+  stroke-linejoin: round;
+  pointer-events: none;
+}
+
+/* color picker */
+.swatches { display: flex; flex-wrap: wrap; gap: 11px; }
+.swatch {
+  position: relative;
+  display: block;
+  width: 34px; height: 34px;
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+  background: var(--sw);
+}
+.swatch[aria-checked="true"] { outline: 3px solid var(--ink); outline-offset: 2px; }
+.swatch--custom {
+  background: conic-gradient(#D7263D, #E8C21A, #1F9D57, #17A9C0, #5B5FC7, #D6578F, #D7263D);
+  overflow: hidden;
+}
+.swatch--custom input {
+  position: absolute; inset: 0; width: 100%; height: 100%;
+  opacity: 0; border: 0; padding: 0; cursor: pointer;
+}
+
+.hint-box {
+  margin: 0 0 14px; padding: 10px 12px;
+  background: var(--cream-dim); border-radius: var(--radius-sm);
+  font-size: 13px; line-height: 1.5; color: var(--ink-soft);
+}
+.node-summary p { margin: 0 0 10px; font-size: 14px; color: var(--ink-soft); }
+.btn--danger { color: var(--rust); }
 
 [hidden] { display: none !important; }

@@ -6,7 +6,12 @@ db.version(1).stores({
   books: "++id, title, createdAt",
   endings: "++id, bookId, status, createdAt",
 });
-
+// v2 adds the story-map table. Existing books and endings are kept.
+db.version(2).stores({
+  books: "++id, title, createdAt",
+  endings: "++id, bookId, status, createdAt",
+  nodes: "++id, bookId, parentId, endingId",
+}); 
 // ===========================================================
 // State
 // ===========================================================
@@ -15,6 +20,7 @@ const state = {
   editingBookId: null,
   editingEndingId: null,
   expandedEndingId: null,
+  bookTab: "list", // "list" | "map"
 };
 
 const $ = (sel, root = document) => root.querySelector(sel);
@@ -45,10 +51,30 @@ function showLibrary() {
 async function showBook(bookId) {
   state.currentBookId = bookId;
   state.expandedEndingId = null;
+  state.bookTab = "list";
+  applyBookTab();
   $("#view-library").hidden = true;
   $("#view-book").hidden = false;
   await renderBook();
 }
+
+function applyBookTab() {
+  const isMap = state.bookTab === "map";
+  $("#tab-list").setAttribute("aria-selected", String(!isMap));
+  $("#tab-map").setAttribute("aria-selected", String(isMap));
+  $("#panel-list").hidden = isMap;
+  $("#panel-map").hidden = !isMap;
+  $("#btn-add-ending").hidden = isMap;
+}
+
+function setBookTab(tab) {
+  state.bookTab = tab;
+  applyBookTab();
+  if (tab === "map") renderMap(); // defined in map.js
+}
+
+$("#tab-list").addEventListener("click", () => setBookTab("list"));
+$("#tab-map").addEventListener("click", () => setBookTab("map"));
 
 // ===========================================================
 // Rendering: Library
@@ -105,6 +131,7 @@ async function renderBook() {
 
   $("#book-title").textContent = book.title;
   $("#book-author").textContent = book.author || "Unknown author";
+  if (state.bookTab == "map") renderMap();
 
   const endings = await db.endings
     .where("bookId").equals(book.id)
@@ -201,7 +228,10 @@ async function toggleReached(id) {
 
 async function deleteEnding(id) {
   if (!confirm("Delete this ending? This can't be undone.")) return;
-  await db.endings.delete(id);
+  await db.transaction("rw", db.endings, db.nodes, async () => {
+    await db.nodes.where("endingId").equals(id).delete();
+    await db.endings.delete(id);
+  });
   state.expandedEndingId = null;
   renderBook();
   toast("Ending deleted");
@@ -209,8 +239,9 @@ async function deleteEnding(id) {
 
 async function deleteBook(id) {
   if (!confirm("Delete this book and all its endings? This can't be undone.")) return;
-  await db.transaction("rw", db.books, db.endings, async () => {
+  await db.transaction("rw", db.books, db.endings, db.nodes, async () => {
     await db.endings.where("bookId").equals(id).delete();
+    await db.nodes.where("bookId").equals(id).delete();
     await db.books.delete(id);
   });
   closeDialog("dlg-book");
@@ -384,22 +415,111 @@ $("#btn-back").addEventListener("click", showLibrary);
 // ===========================================================
 $("#btn-settings").addEventListener("click", () => openDialog("dlg-settings"));
 
-$("#btn-export").addEventListener("click", async () => {
-  const books = await db.books.toArray();
-  const endings = await db.endings.toArray();
-  const payload = {
+async function buildExportPayload() {
+  const [books, endings, nodes] = await Promise.all([
+    db.books.toArray(), db.endings.toArray(), db.nodes.toArray(),
+  ]);
+  return {
     app: "cyoa-endings-tracker",
-    version: 1,
+    version: 2,
     exportedAt: new Date().toISOString(),
-    books,
-    endings,
+    books, endings, nodes,
   };
+}
+
+// Merges a library file into what's already on this device.
+//  - books with the same title are merged, not duplicated
+//  - endings already in a book (same title, ignoring case) are skipped; if the
+//    file says it was reached, the existing one is marked reached too
+//  - a story map is only imported into a book whose map is still empty, so an
+//    existing map is never overwritten
+async function importPayload(payload) {
+  if (!payload || !Array.isArray(payload.books) || !Array.isArray(payload.endings)) {
+    throw new Error("That file doesn't look like a library export.");
+  }
+  const importedNodes = Array.isArray(payload.nodes) ? payload.nodes : [];
+  const summary = { books: 0, endings: 0, skippedEndings: 0, maps: 0, skippedMaps: 0 };
+
+  await db.transaction("rw", db.books, db.endings, db.nodes, async () => {
+    const known = await db.books.toArray();
+    const bookMap = new Map(); // id in the file -> id on this device
+    for (const b of payload.books) {
+      const { id: oldId, ...rest } = b;
+      const title = String(rest.title || "").trim();
+      if (!title) continue;
+      const match = known.find((x) => x.title.trim().toLowerCase() === title.toLowerCase());
+      if (match) {
+        bookMap.set(oldId, match.id);
+      } else {
+        const rec = { ...rest, title, createdAt: rest.createdAt || Date.now() };
+        const newId = await db.books.add(rec);
+        known.push({ ...rec, id: newId });
+        bookMap.set(oldId, newId);
+        summary.books++;
+      }
+    }
+
+    const endingMap = new Map();
+    for (const e of payload.endings) {
+      const { id: oldId, ...rest } = e;
+      const newBookId = bookMap.get(e.bookId);
+      const label = String(rest.label || "").trim();
+      if (newBookId == null || !label) continue;
+      const dupe = await db.endings.where("bookId").equals(newBookId)
+        .filter((x) => x.label.trim().toLowerCase() === label.toLowerCase()).first();
+      if (dupe) {
+        endingMap.set(oldId, dupe.id);
+        summary.skippedEndings++;
+        if (rest.status === "reached" && dupe.status !== "reached") {
+          await db.endings.update(dupe.id, { status: "reached", reachedAt: rest.reachedAt || Date.now() });
+        }
+      } else {
+        const newId = await db.endings.add({ ...rest, label, bookId: newBookId, createdAt: rest.createdAt || Date.now() });
+        endingMap.set(oldId, newId);
+        summary.endings++;
+      }
+    }
+
+    const byBook = new Map();
+    for (const n of importedNodes) {
+      if (!byBook.has(n.bookId)) byBook.set(n.bookId, []);
+      byBook.get(n.bookId).push(n);
+    }
+    for (const [oldBookId, list] of byBook) {
+      const newBookId = bookMap.get(oldBookId);
+      if (newBookId == null || !list.some((n) => n.type === "root")) continue;
+      const current = await db.nodes.where("bookId").equals(newBookId).toArray();
+      if (current.some((n) => n.type !== "root")) { summary.skippedMaps++; continue; }
+      await db.nodes.where("bookId").equals(newBookId).delete(); // drop the empty auto-made root
+      const idMap = new Map();
+      for (const n of [...list].sort((a, b) => a.id - b.id)) { // parents always have lower ids
+        const { id: oldId, ...rest } = n;
+        const parentId = rest.parentId == null ? null : idMap.get(rest.parentId);
+        if (rest.parentId != null && parentId == null) continue;
+        let endingId = null;
+        if (rest.endingId != null) {
+          endingId = endingMap.get(rest.endingId) ?? null;
+          if (endingId == null) continue;
+        }
+        const newId = await db.nodes.add({
+          ...rest, bookId: newBookId, parentId, endingId,
+          lineColor: safeColor(rest.lineColor), createdAt: rest.createdAt || Date.now(),
+        });
+        idMap.set(oldId, newId);
+      }
+      summary.maps++;
+    }
+  });
+  return summary;
+}
+
+$("#btn-export").addEventListener("click", async () => {
+  const payload = await buildExportPayload();
   const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
-  const stamp = new Date().toISOString().slice(0, 10);
   a.href = url;
-  a.download = `adventure-library-${stamp}.json`;
+  a.download = `adventure-library-${new Date().toISOString().slice(0, 10)}.json`;
   document.body.appendChild(a);
   a.click();
   a.remove();
@@ -414,35 +534,14 @@ $("#file-import").addEventListener("change", async (ev) => {
   ev.target.value = "";
   if (!file) return;
   try {
-    const text = await file.text();
-    const payload = JSON.parse(text);
+    const payload = JSON.parse(await file.text());
     if (!Array.isArray(payload.books) || !Array.isArray(payload.endings)) {
       throw new Error("That file doesn't look like a library export.");
     }
-    if (!confirm(`Import ${payload.books.length} book(s) and ${payload.endings.length} ending(s)? Matching titles will be merged, not duplicated.`)) return;
-
-    await db.transaction("rw", db.books, db.endings, async () => {
-      const existingBooks = await db.books.toArray();
-      const idMap = {};
-      for (const b of payload.books) {
-        const match = existingBooks.find((x) => x.title.trim().toLowerCase() === b.title.trim().toLowerCase());
-        if (match) {
-          idMap[b.id] = match.id;
-        } else {
-          const { id, ...rest } = b;
-          const newId = await db.books.add({ ...rest, createdAt: rest.createdAt || Date.now() });
-          idMap[b.id] = newId;
-        }
-      }
-      for (const e of payload.endings) {
-        const newBookId = idMap[e.bookId];
-        if (!newBookId) continue;
-        const { id, ...rest } = e;
-        await db.endings.add({ ...rest, bookId: newBookId, createdAt: rest.createdAt || Date.now() });
-      }
-    });
-
-    toast("Import complete");
+    const points = Array.isArray(payload.nodes) ? payload.nodes.length : 0;
+    if (!confirm(`Import ${payload.books.length} book(s), ${payload.endings.length} ending(s) and ${points} map point(s)? Books with the same title are merged, and endings you already have are skipped.`)) return;
+    const s = await importPayload(payload);
+    toast(`Imported ${s.endings} new ending${s.endings === 1 ? "" : "s"}`);
     closeDialog("dlg-settings");
     showLibrary();
   } catch (err) {

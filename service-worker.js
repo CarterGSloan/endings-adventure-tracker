@@ -6,6 +6,7 @@ const APP_SHELL = [
   "./index.html",
   "./styles.css",
   "./app.js",
+  "./map.js",
   "./manifest.json",
   "./vendor/dexie.min.js",
   "./icons/icon-192.png",
